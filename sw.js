@@ -6,10 +6,21 @@
 //
 // The worker only caches application files. Workspace data lives in IndexedDB, which this
 // worker never opens, so installing or replacing a worker cannot alter saved records.
-const BUILD_ID = "184d4fa-b161aa1076";
+const BUILD_ID = "c2d6173-97f815d8a3";
 const PRECACHE = [
   "/",
-  "/assets/index-CE5AIfS7.js",
+  "/assets/AdvancedGraphView-BKrxD3Ik.js",
+  "/assets/CollectivePanel-N3hwlaq_.js",
+  "/assets/DesktopShell-CQhv8XPx.js",
+  "/assets/MindspaceView-hHuW0YyI.js",
+  "/assets/PanelViews-_d7n-8wW.js",
+  "/assets/QuickSwitcher-CRK8FyUG.js",
+  "/assets/RecoveryDialog-BJTIqrqQ.js",
+  "/assets/SearchPanelView-C2D31oTY.js",
+  "/assets/SpatialCards-3l7CN49e.js",
+  "/assets/WorkspaceOverviewView-COluPQUR.js",
+  "/assets/index-DcrHy3qz.js",
+  "/assets/index-UB_Lb04Q.js",
   "/assets/index-mhUODVWS.css",
   "/icons/apple-touch-icon.png",
   "/icons/icon-192.png",
