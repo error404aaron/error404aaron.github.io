@@ -6,22 +6,23 @@
 //
 // The worker only caches application files. Workspace data lives in IndexedDB, which this
 // worker never opens, so installing or replacing a worker cannot alter saved records.
-const BUILD_ID = "c2d6173-97f815d8a3";
+const BUILD_ID = "ad9faaf-4eec068d1a";
 const PRECACHE = [
   "/",
-  "/assets/AdvancedGraphView-BKrxD3Ik.js",
-  "/assets/CollectivePanel-N3hwlaq_.js",
-  "/assets/DesktopShell-CQhv8XPx.js",
-  "/assets/MindspaceView-hHuW0YyI.js",
-  "/assets/PanelViews-_d7n-8wW.js",
-  "/assets/QuickSwitcher-CRK8FyUG.js",
-  "/assets/RecoveryDialog-BJTIqrqQ.js",
-  "/assets/SearchPanelView-C2D31oTY.js",
-  "/assets/SpatialCards-3l7CN49e.js",
-  "/assets/WorkspaceOverviewView-COluPQUR.js",
-  "/assets/index-DcrHy3qz.js",
-  "/assets/index-UB_Lb04Q.js",
-  "/assets/index-mhUODVWS.css",
+  "/assets/AdvancedGraphView-CDqhlDyP.js",
+  "/assets/CollectivePanel-C2lH8CJQ.js",
+  "/assets/DesktopShell-D0FFa7uG.js",
+  "/assets/MindspaceView-Dqfq6UJw.js",
+  "/assets/PanelViews-BA_0tlfb.js",
+  "/assets/QuickSwitcher-Ca4XfDiJ.js",
+  "/assets/RecoveryDialog-BLFbeaox.js",
+  "/assets/SearchPanelView-CNW47owM.js",
+  "/assets/SpatialCards-BZDxW-Dk.js",
+  "/assets/WorkspaceOverviewView-D7rKVJt4.js",
+  "/assets/index-BXVkX-Qp.js",
+  "/assets/index-CVieVYg6.js",
+  "/assets/index-n4wxqG8A.css",
+  "/assets/recoveryRestore-BweT_D2S.js",
   "/icons/apple-touch-icon.png",
   "/icons/icon-192.png",
   "/icons/icon-192.svg",
@@ -79,7 +80,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("message", (event) => {
   if (!event.data) return;
   if (event.data.type === "SKIP_WAITING") {
-    self.skipWaiting();
+    event.waitUntil(self.skipWaiting());
   } else if (event.data.type === "GET_BUILD_ID" && event.ports && event.ports[0]) {
     event.ports[0].postMessage({ buildId: BUILD_ID, cache: CACHE_VERSION });
   } else if (event.data.type === "GET_CLIENT_COUNT" && event.ports && event.ports[0]) {
