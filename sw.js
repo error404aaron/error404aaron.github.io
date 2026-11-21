@@ -1,28 +1,21 @@
-// AETHER offline shell service worker.
-//
-// This file is a template: the Vite `aetherPwa` plugin (apps/web/vite.config.ts) replaces the
-// two placeholders below and emits the result as `dist/sw.js`. Every production build therefore
-// gets its own cache name and a complete list of the files it needs to start offline.
-//
-// The worker only caches application files. Workspace data lives in IndexedDB, which this
-// worker never opens, so installing or replacing a worker cannot alter saved records.
-const BUILD_ID = "ad9faaf-4eec068d1a";
+// AETHER offline shell service worker (placeholders replaced by Vite aetherPwa plugin).
+const BUILD_ID = "1dcaff9-f1d77eda9f";
 const PRECACHE = [
   "/",
-  "/assets/AdvancedGraphView-CDqhlDyP.js",
-  "/assets/CollectivePanel-C2lH8CJQ.js",
-  "/assets/DesktopShell-D0FFa7uG.js",
-  "/assets/MindspaceView-Dqfq6UJw.js",
-  "/assets/PanelViews-BA_0tlfb.js",
-  "/assets/QuickSwitcher-Ca4XfDiJ.js",
-  "/assets/RecoveryDialog-BLFbeaox.js",
-  "/assets/SearchPanelView-CNW47owM.js",
-  "/assets/SpatialCards-BZDxW-Dk.js",
-  "/assets/WorkspaceOverviewView-D7rKVJt4.js",
-  "/assets/index-BXVkX-Qp.js",
-  "/assets/index-CVieVYg6.js",
-  "/assets/index-n4wxqG8A.css",
-  "/assets/recoveryRestore-BweT_D2S.js",
+  "/assets/AdvancedGraphView-2LFMsgai.js",
+  "/assets/CollectivePanel-BnCLsviD.js",
+  "/assets/DesktopShell-By87U_K_.js",
+  "/assets/MindspaceView-Daai0zqn.js",
+  "/assets/PanelViews-BlQzySmP.js",
+  "/assets/QuickSwitcher-9daawNM1.js",
+  "/assets/RecoveryDialog-V7Boy_Fa.js",
+  "/assets/SearchPanelView-xUtwzS7z.js",
+  "/assets/SpatialCards-D0fUYJ2J.js",
+  "/assets/WorkspaceOverviewView-2rODxkqe.js",
+  "/assets/index-CQHss3lG.css",
+  "/assets/index-Cni5vIpl.js",
+  "/assets/index-CwCBZe2X.js",
+  "/assets/recoveryRestore-DSVrj235.js",
   "/icons/apple-touch-icon.png",
   "/icons/icon-192.png",
   "/icons/icon-192.svg",
@@ -31,34 +24,70 @@ const PRECACHE = [
   "/index.html",
   "/manifest.webmanifest"
 ];
+const PRECACHE_SET = new Set(PRECACHE);
+const PRECACHE_ASSETS = PRECACHE.filter((p) => p.startsWith("/assets/"));
 const CACHE_PREFIX = "aether-shell-";
 const CACHE_VERSION = CACHE_PREFIX + BUILD_ID;
-// Files that describe the build itself are always fetched fresh and never cached.
+const BUILD_META = `name="aether-build" content="${BUILD_ID}"`;
 const NETWORK_ONLY = new Set(["/sw.js", "/build.json"]);
-// On a slow or captive network, fall back to the cached shell instead of hanging the launch.
 const NAVIGATION_TIMEOUT_MS = 4000;
+
+function extractAssetRefs(html) {
+  if (typeof html !== "string") return [];
+  return [...new Set(html.match(/\/assets\/[^"'\s>]+/g) || [])];
+}
+
+function verifyShellCoherence(cache, html) {
+  if (typeof html !== "string" || !html.includes(BUILD_META) || !html.includes("</html>")) {
+    return Promise.resolve(false);
+  }
+  const refs = extractAssetRefs(html);
+  if (
+    refs.length === 0 ||
+    !refs.some((r) => r.endsWith(".js")) ||
+    !refs.every((r) => PRECACHE_SET.has(r))
+  ) {
+    return Promise.resolve(false);
+  }
+  const required = [...new Set([...refs, ...PRECACHE_ASSETS])];
+  return Promise.all(required.map((p) => cache.match(p, { ignoreVary: true }))).then((hits) =>
+    hits.every((h) => Boolean(h && h.status === 200))
+  );
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_VERSION)
       .then((cache) =>
-        // `reload` bypasses the HTTP cache so a new build never precaches stale bytes.
         cache
-          .addAll(PRECACHE.map((path) => new Request(path, { cache: "reload" })))
-          .then(() => Promise.all(PRECACHE.map((path) => cache.match(path, { ignoreVary: true }))))
+          .addAll(PRECACHE.map((p) => new Request(p, { cache: "reload" })))
+          .then(() => Promise.all(PRECACHE.map((p) => cache.match(p, { ignoreVary: true }))))
           .then((matches) => {
-            if (matches.some((hit) => !hit)) {
+            if (matches.some((h) => !h || h.status !== 200)) {
               throw new Error("aether-sw: incomplete precache validation");
+            }
+            const shells = ["/index.html", "/"].filter((p) => PRECACHE_SET.has(p));
+            return Promise.all(
+              shells.map((p) =>
+                cache
+                  .match(p, { ignoreVary: true })
+                  .then((h) => (h ? h.clone().text() : ""))
+                  .then((html) => verifyShellCoherence(cache, html))
+              )
+            );
+          })
+          .then((okList) => {
+            if (okList.length === 0 || okList.some((ok) => !ok)) {
+              throw new Error("aether-sw: incoherent shell build identity during install");
             }
           })
       )
-      .catch((error) => {
-        // Remove incomplete cache on failed install while keeping prior caches intact.
-        return caches.delete(CACHE_VERSION).then(() => {
+      .catch((error) =>
+        caches.delete(CACHE_VERSION).then(() => {
           throw error;
-        });
-      })
+        })
+      )
   );
 });
 
@@ -69,8 +98,8 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_VERSION)
-            .map((oldKey) => caches.delete(oldKey))
+            .filter((k) => k.startsWith(CACHE_PREFIX) && k !== CACHE_VERSION)
+            .map((k) => caches.delete(k))
         )
       )
       .then(() => self.clients.claim())
@@ -94,10 +123,8 @@ self.addEventListener("message", (event) => {
 function cachedShell() {
   return caches
     .open(CACHE_VERSION)
-    .then((cache) =>
-      cache
-        .match("/index.html", { ignoreVary: true })
-        .then((hit) => hit || cache.match("/", { ignoreVary: true }))
+    .then((c) =>
+      c.match("/index.html", { ignoreVary: true }).then((h) => h || c.match("/", { ignoreVary: true }))
     );
 }
 
@@ -105,13 +132,13 @@ function networkWithTimeout(request) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("navigation timeout")), NAVIGATION_TIMEOUT_MS);
     fetch(request).then(
-      (response) => {
+      (res) => {
         clearTimeout(timer);
-        resolve(response);
+        resolve(res);
       },
-      (error) => {
+      (err) => {
         clearTimeout(timer);
-        reject(error);
+        reject(err);
       }
     );
   });
@@ -120,41 +147,62 @@ function networkWithTimeout(request) {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
-
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;
-  if (NETWORK_ONLY.has(url.pathname)) return;
+  if (url.origin !== self.location.origin || NETWORK_ONLY.has(url.pathname)) return;
 
   if (req.mode === "navigate") {
-    // Network first so an online launch sees the newest index.html, which references only
-    // assets this build precached. Offline, slow or failing responses use the cached shell.
     event.respondWith(
       networkWithTimeout(req)
-        .then((response) => {
-          if (response && response.ok && response.type === "basic") {
-            const copy = response.clone();
-            caches.open(CACHE_VERSION).then((cache) => cache.put("/index.html", copy));
-            return response;
+        .then((res) => {
+          if (res && res.status === 200 && res.type === "basic") {
+            const inspectCopy = res.clone();
+            const storeCopy = res.clone();
+            event.waitUntil(
+              caches
+                .has(CACHE_VERSION)
+                .then((exists) => {
+                  if (!exists) return;
+                  return inspectCopy.text().then((html) =>
+                    caches.open(CACHE_VERSION).then((c) =>
+                      verifyShellCoherence(c, html).then((ok) => {
+                        if (ok) return c.put("/index.html", storeCopy);
+                      })
+                    )
+                  );
+                })
+                .catch(() => {})
+            );
+            return res;
           }
-          return cachedShell().then((cached) => cached || response);
+          return cachedShell().then((cached) => cached || res);
         })
         .catch(() => cachedShell().then((cached) => cached || Response.error()))
     );
     return;
   }
 
-  // Hashed assets never change content under the same URL, so cache first is safe.
-  // `ignoreVary` is required: servers send `Vary: Origin`, and the page's module and stylesheet
-  // requests carry an Origin header that the precache requests made during install do not.
   event.respondWith(
     caches.match(req, { cacheName: CACHE_VERSION, ignoreVary: true }).then((cached) => {
       if (cached) return cached;
-      return fetch(req).then((response) => {
-        if (response && response.status === 200 && response.type === "basic") {
-          const copy = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put(req, copy));
+      return fetch(req).then((res) => {
+        if (
+          res &&
+          res.status === 200 &&
+          res.type === "basic" &&
+          !url.search &&
+          PRECACHE_SET.has(url.pathname)
+        ) {
+          const copy = res.clone();
+          event.waitUntil(
+            caches
+              .has(CACHE_VERSION)
+              .then((exists) => {
+                if (exists) return caches.open(CACHE_VERSION).then((c) => c.put(req, copy));
+              })
+              .catch(() => {})
+          );
         }
-        return response;
+        return res;
       });
     })
   );
